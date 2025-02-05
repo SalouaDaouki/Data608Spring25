@@ -1,0 +1,114 @@
+---
+title: "Story1"
+author: "Saloua Daouki"
+date: "2025-01-31"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+```
+**Research Question:** Is there a correlation between a state's dependency on federal aid and its political affiliation?
+
+## Loading the data
+
+```{r setup-libs, message=FALSE, warning=FALSE}
+library(ggplot2)
+library(dplyr)
+library(maps)
+library(ggthemes)
+```
+
+```{r }
+federal_data <- readxl::read_excel("story 1.xlsx")
+head(federal_data)
+```
+
+The `federal_data` contains 51 observations and 7 variables, capturing the relationship between a state's dependency on federal aid and its political affiliation. The dataset includes information on each state's `Dependency Score`, `Return on Tax Dollars`, and `Federal Funds as a Percentage of State Revenue`, alongside its `GDP`. The Political Affiliation variable categorizes states as either 'Red' (Republican-leaning) or 'Blue' (Democratic-leaning). This dataset enables an analysis of whether political affiliation correlates with reliance on federal funding.
+
+Before diving into visualization, let's further explore the dataset and check for any missing values.
+
+```{r}
+# Checking the structure of the data
+str(federal_data)
+# Checking the summary if the data
+summary(federal_data)
+# Checking for missing data
+colSums(is.na(federal_data))
+```
+To ensure data quality before visualization, we examined its structure, summary statistics, and checked for missing values. The structure of the dataset confirms that it includes numerical and categorical variables, with State and Political Affiliation being character variables, while the remaining columns are numeric.
+
+The summary statistics indicate a wide range of dependency scores, return on tax dollars, and GDP values, suggesting significant variation across states. Additionally, the missing values check confirms that the dataset is complete, with no missing values in any of the columns.
+
+## Analysis:
+
+We already have the column Fed Fund % of State Revenue which represents the proportion of each state's revenue derived from federal aid. So we can calculate the average dependency by political affiliation using `dplyr`:
+```{r}
+# Calculate the average Federal Fund % of State Revenue by Political Affiliation
+federal_data_avg <- federal_data %>%
+  group_by(`Political Affiliation`) %>%
+  summarise(Average_Fed_Fund_Percentage = mean(`Fed Fund % of State Revenue`))
+
+# View the results
+print(federal_data_avg)
+```
+## Including Plots
+
+To better understand and effectively illustrates the relationship between federal aid dependency and political affiliation, I will create a box plot. The box plot clearly shows the distribution of federal aid dependency (or its related measure like the “Fed Fund % of State Revenue”) for both Democratic and Republican-leaning states.
+
+It seems that there is an outlier in the blue boxplot below and it is hard to get the five-number summary precisely from the graph. I am going to calculate those numbers by political affiliation and check if the outlier is extreme:
+
+```{r}
+# Calculate five-number summary and IQR for Federal Fund % of State Revenue by Political Affiliation
+federal_data %>%
+  group_by(`Political Affiliation`) %>%
+  summarise(
+    min_value = min(`Fed Fund % of State Revenue`, na.rm = TRUE),
+    Q1 = quantile(`Fed Fund % of State Revenue`, 0.25, na.rm = TRUE),
+    median_value = median(`Fed Fund % of State Revenue`, na.rm = TRUE),
+    Q3 = quantile(`Fed Fund % of State Revenue`, 0.75, na.rm = TRUE),
+    max_value = max(`Fed Fund % of State Revenue`, na.rm = TRUE),
+    IQR = IQR(`Fed Fund % of State Revenue`, na.rm = TRUE)
+  )
+```
+
+```{r, fig.align="center"}
+# Box plot to show party-wise distribution of Federal Fund % of State Revenue
+ggplot(federal_data, aes(x = `Political Affiliation`, y = `Fed Fund % of State Revenue`, fill = `Political Affiliation`)) +
+  geom_boxplot() +
+  labs(title = "Distribution of Federal Aid Dependency by Political Affiliation",
+       x = "Political Affiliation",
+       y = "Federal Fund % of State Revenue") +
+  theme_minimal() +
+  scale_fill_manual(values = c("Red" = "red", "Blue" = "blue"))
+```
+
+
+The median of the `Federal Fund % of State Revenue` for Blue states is 0.1795, while for Red states it is 0.2180. This suggests a correlation between political affiliation and federal aid dependency. The higher median for Red states indicates that, on average, Red states rely more on federal aid than Blue states.
+
+The IQR for Blue states is 0.05575, while for Red states it's 0.0785.The larger IQR for Red states suggests that there is more variation or spread in the dependency percentages for Red states compared to Blue states.This helps explain that Red states not only tend to rely more on federal aid but also show greater variation in this reliance across the states.
+```{r}
+# Determine if outlier is extreme in the Blue states
+blue_outlier_check <- federal_data %>%
+  filter(`Political Affiliation` == "Blue") %>%
+  summarise(
+    Q1 = quantile(`Fed Fund % of State Revenue`, 0.25, na.rm = TRUE),
+    Q3 = quantile(`Fed Fund % of State Revenue`, 0.75, na.rm = TRUE),
+    IQR = IQR(`Fed Fund % of State Revenue`, na.rm = TRUE),
+    max_value = max(`Fed Fund % of State Revenue`, na.rm = TRUE),
+    upper_bound = Q3 + 1.5 * IQR,
+    upper_bound_ext = Q3 + 3 * IQR,
+    outlier_type = case_when(
+      max_value > upper_bound_ext ~ "Extreme Outlier",  # Extreme if exceeds upper bound (x3 IQR)
+      max_value > upper_bound ~ "Regular Outlier",    # Regular if exceeds upper bound (x1.5 IQR)
+      TRUE ~ "No Outlier"                             # No outlier if within bounds
+    )
+  )
+
+print(blue_outlier_check)
+```
+Interestingly, the Blue states also have an extreme outlier, with a maximum value of 0.322, surpassing the upper bound of the interquartile range (0.313625). This anomaly suggests that while the trend is evident, outliers like this may warrant further investigation.
+
+**Interpretations: **
+
+The data suggests that Republican-leaning (Red) states tend to rely more on federal aid than Democratic-leaning (Blue) states. The median federal aid percentage for Red states is 21.8%, while for Blue states, it is 17.95%. There is also greater variability in Red states, while an extreme outlier appears in Blue states. This suggests a potential correlation between political affiliation and federal aid dependency, though additional factors may contribute to the trend.

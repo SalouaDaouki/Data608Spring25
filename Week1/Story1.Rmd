@@ -1,0 +1,169 @@
+---
+title: "Week1_Story"
+author: "Saloua Daouki"
+date: "2025-01-30"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+```
+
+**Research Question:** Is there a correlation between a state's dependency on federal aid and its political affiliation?
+
+
+## Loading the data
+
+```{r echo=FALSE}
+library(ggplot2)
+library(dplyr)
+library(maps)
+library(ggthemes)
+```
+
+
+```{r }
+federal_data <- readxl::read_excel("story 1.xlsx")
+head(federal_data)
+```
+
+The `federal_data` contains 51 observations and 7 variables, capturing the relationship between a state's dependency on federal aid and its political affiliation. The dataset includes information on each state's `Dependency Score`, `Return on Tax Dollars`, and `Federal Funds as a Percentage of State Revenue`, alongside its `GDP`. The Political Affiliation variable categorizes states as either 'Red' (Republican-leaning) or 'Blue' (Democratic-leaning). This dataset enables an analysis of whether political affiliation correlates with reliance on federal funding.
+
+Before diving into visualization, let's further explore the dataset and check for any missing values.
+
+```{r}
+# Checking the structure of the data
+str(federal_data)
+# Checking the summary if the data
+summary(federal_data)
+# Checking for missing data
+colSums(is.na(federal_data))
+```
+
+To ensure data quality before visualization, we examined its structure, summary statistics, and checked for missing values. The structure of the dataset confirms that it includes numerical and categorical variables, with State and Political Affiliation being character variables, while the remaining columns are numeric.
+
+The summary statistics indicate a wide range of dependency scores, return on tax dollars, and GDP values, suggesting significant variation across states. Additionally, the missing values check confirms that the dataset is complete, with no missing values in any of the columns.
+
+## Analysis:
+
+We already have the column Fed Fund % of State Revenue which represents the proportion of each state's revenue derived from federal aid. So we can calculate the average dependency by political affiliation using `dplyr`:
+
+```{r}
+# Calculate the average Federal Fund % of State Revenue by Political Affiliation
+federal_data_avg <- federal_data %>%
+  group_by(`Political Affiliation`) %>%
+  summarise(Average_Fed_Fund_Percentage = mean(`Fed Fund % of State Revenue`))
+
+# View the results
+print(federal_data_avg)
+```
+
+
+## Including Plots
+
+To better understand the relationship between federal aid dependency and political affiliation, I will create three visualizations: a scatter plot, a box plot, and a choropleth map. 
+
+- The scatter plot will help identify correlation patterns between dependency metrics and financial indicators, with a regression line to highlight trends. 
+
+- The box plot will compare the distribution of federal aid dependency across political affiliations, revealing any disparities between Republican and Democratic states. 
+
+- Finally, the choropleth map will provide a regional perspective, using color gradients to illustrate varying levels of dependency while outlining state boundaries based on political affiliation. Together, these visualizations will enable decision-makers to quickly discern key patterns and insights.
+
+
+```{r}
+# Scatter Plot
+ggplot(federal_data, aes(x = `Dependency Score`, y = `Return on Tax Dollars`, color = `Political Affiliation`)) +
+  geom_point(size = 3, alpha = 0.7) +
+  geom_smooth(method = "lm", se = FALSE, color = "black", linetype = "dashed") +
+  labs(title = "Dependency Score vs. Return on Tax Dollars",
+       x = "Dependency Score",
+       y = "Return on Tax Dollars",
+       color = "Political Affiliation") +
+  theme_minimal()
+```
+
+This scatter plot will show the relationship between federal aid dependency (x-axis) and another variable (y-axis).We can use `Fed Fund % of State Revenue` for x and `GDP in $M` for y, colored by `political affiliation`.
+
+```{r}
+# Scatter plot to show correlation
+ggplot(federal_data, aes(x = `Fed Fund % of State Revenue`, y = `GDP in $M`, color = `Political Affiliation`)) +
+  geom_point(size = 3) + # Points for each state
+  geom_smooth(method = "lm", se = FALSE, aes(color = `Political Affiliation`)) + # Linear regression line
+  labs(title = "Federal Aid Dependency vs. GDP by Political Affiliation",
+       x = "Federal Fund % of State Revenue",
+       y = "GDP in $M") +
+  theme_minimal() +
+  scale_color_manual(values = c("Red" = "red", "Blue" = "blue"))
+```
+
+The box plot will show the distribution of federal aid dependency scores between Red and Blue states.
+
+```{r}
+# Box Plot
+ggplot(federal_data, aes(x = `Political Affiliation`, y = `Dependency Score`, fill = `Political Affiliation`)) +
+  geom_boxplot(alpha = 0.7) +
+  labs(title = "Federal Aid Dependency by Political Affiliation",
+       x = "Political Affiliation",
+       y = "Dependency Score") +
+  theme_minimal() +
+  scale_fill_manual(values = c("Blue" = "blue", "Red" = "red"))
+```
+
+```{r}
+# Box plot to show party-wise distribution of Federal Fund % of State Revenue
+ggplot(federal_data, aes(x = `Political Affiliation`, y = `Fed Fund % of State Revenue`, fill = `Political Affiliation`)) +
+  geom_boxplot() +
+  labs(title = "Distribution of Federal Aid Dependency by Political Affiliation",
+       x = "Political Affiliation",
+       y = "Federal Fund % of State Revenue") +
+  theme_minimal() +
+  scale_fill_manual(values = c("Red" = "red", "Blue" = "blue"))
+```
+
+
+```{r}
+# Choropleth
+# Get U.S. states map data
+us_states <- map_data("state")
+
+# Ensure state names match between datasets (convert to lowercase)
+federal_data <- federal_data %>%
+  mutate(State = tolower(State))
+
+# Merge the federal data with the map data
+map_data_merged <- us_states %>%
+  left_join(federal_data, by = c("region" = "State"))
+
+# Plot the choropleth
+ggplot(map_data_merged, aes(x = long, y = lat, group = group, fill = `Dependency Score`)) +
+  geom_polygon(color = "white") +  # Draw state boundaries
+  scale_fill_gradient(low = "lightblue", high = "darkblue", name = "Dependency Score") +
+  theme_minimal() +
+  labs(title = "Dependency on Federal Aid by State",
+       subtitle = "Darker shades indicate higher dependency",
+       fill = "Dependency Score") +
+  theme_void()  # Removes background and axes for a clean look
+```
+
+```{r}
+# Storytelling paragraph for interpretation
+storytelling <- "In the analysis of federal aid dependency and political affiliation, we see that Blue states tend to have a higher percentage of their revenue from federal aid compared to Red states. For example, New Mexico, a Blue state, has one of the highest federal fund percentages, while Alabama, a Red state, is on the lower end. The scatter plot suggests that while there is some correlation between federal aid dependency and GDP, other factors, such as state-specific needs, might play a role in explaining these dependencies. The box plot shows a more clustered distribution of federal aid in Blue states, while Red states have a wider range of dependency scores. Overall, the data suggests a relationship between political affiliation and federal aid dependency, though further analysis may be required to understand underlying causes."
+
+```
+
+
+
+
+
+
+1. Scatter Plot (To Show Correlation)
+X-axis: Dependency Score (or Fed Fund % of State Revenue)
+Y-axis: Return on Tax Dollars (or GDP in $M for additional insight)
+Color: Political Affiliation (Red for Republican, Blue for Democrat)
+Trend Line: Add a regression line to highlight correlation patterns
+2. Box Plot (For Party-wise Distribution)
+X-axis: Political Affiliation (Republican vs. Democrat)
+Y-axis: Dependency Score (or Fed Fund % of State Revenue)
+3. Choropleth Map (For Regional Insights)
+Fill Color: Dependency Score (or Fed Fund % of State Revenue, using a color gradient)
+State Boundaries: Outline states based on Political Affiliation (Red for Republican, Blue for Democrat)
