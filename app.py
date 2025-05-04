@@ -27,4 +27,4 @@ def update_graph(x_axis):
     return fig
 
 if __name__ == '__main__':
-    app.run_server(debug=True)
+    app.run(debug=True)
